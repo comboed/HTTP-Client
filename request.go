@@ -36,19 +36,21 @@ func (request *Request) DeleteHeader(header string) {
 	delete(request.Headers, header)
 }
 
-func parseHeaders(request *Request) {
-	if method := request.Headers["Method"]; method != "" {
+func buildPacket(request *Request) {
+	if method, exists := request.Headers["Method"]; exists {
 		request.Packet = method
 	} else {
 		request.Packet = "GET" // assume it was a GET request
 	}
-	if URL := request.Headers["URL"]; URL != "" {
+	if URL, exists := request.Headers["URL"]; exists {
 		request.Packet += " " + URL + " HTTP/1.1\r\n"
 	} else {
 		panic("No URL supplied")
 	}
-	if host := request.Headers["Host"]; host != "" {
+	if host, exists := request.Headers["Host"]; exists {
 		request.Packet += "Host: " + host + "\r\n"
+	} else {
+		request.Packet += "Host: " + getHost(request.Headers["URL"]) + "\r\n"
 	}
 	for key, value := range request.Headers {
 		if key != "Method" && key != "URL" && key != "Host" {
