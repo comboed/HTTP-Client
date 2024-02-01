@@ -9,7 +9,7 @@ type Client struct {
 	ReadBufferSize int
 	MaxConnections int
 	Connections []*tls.Conn
-	ConnectionPool chan []*tls.Conn
+	connectionIndex chan int
 }
 
 func createClient(readBufferSize, MaxConnections int) *Client {
@@ -17,7 +17,7 @@ func createClient(readBufferSize, MaxConnections int) *Client {
 		ReadBufferSize: readBufferSize,
 		MaxConnections: MaxConnections,
 		Connections: createConnectionSlice(MaxConnections),
-		ConnectionPool: make(chan []*tls.Conn),
+		connectionIndex: make(chan int),
 	}
 }
 
@@ -41,10 +41,15 @@ func appendConnection(connections *[]*tls.Conn, URL string) {
 	}
 }
 
-func fillChannelPool(connections *[]*tls.Conn, connectionPool chan *tls.Conn) {
+func fillChannelPool(connections *[]*tls.Conn, connectionIndex chan int) {
 	for {
-		for _, connection := range *connections {
-			connectionPool <- connection
+		for i := range *connections {
+			connectionIndex <- i
 		}
 	}
+}
+
+
+func (client *Client) Do(request *Request) {
+	var conn *tls.
 }
