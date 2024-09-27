@@ -30,33 +30,35 @@ func getArguments(URI string) string {
 	return ""
 }
 
-func (request *Request) buldPacket() {
+func (request *Request) buldPacket() string {
+	var packet string
 	if method, set := request.Headers["Method"]; set {
-		request.Packet += method + " "
+		packet += method + " "
 	} else {
-		request.Packet += "GET " // We can assume they wanted to use a GET request
+		packet += "GET " // We can assume they wanted to use a GET request
 	}
 
 	if URI, set := request.Headers["URI"]; set {
-		request.Packet += URI + " HTTP/1.1\r\n"
+		packet += URI + " HTTP/1.1\r\n"
 	} else {
 		panic("No URI supplied")
 	}
 
 	if host, set := request.Headers["Host"]; set {
-		request.Packet += "Host: " + host + "\r\n"
+		packet += "Host: " + host + "\r\n"
 	} else {
-		request.Packet += "Host: " + getHost(request.Headers["URI"]) + "\r\n"
+		packet += "Host: " + getHost(request.Headers["URI"]) + "\r\n"
 	}
 
 	for key, value := range request.Headers {
 		if key != "URI" && key != "Host" {
-			request.Packet += key + ": " + value + "\r\n"
+			packet += key + ": " + value + "\r\n"
 		}
 	}
-	request.Packet += "\r\n"
+	packet += "\r\n"
 
 	if request.Body != "" {
-		request.Packet += request.Body
+		packet += request.Body
 	}
+	return packet
 }
