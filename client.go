@@ -4,6 +4,7 @@ import (
 	"github.com/valyala/fasthttp"
 	"crypto/tls"
 	"bufio"
+	"net"
 )
 
 type Client struct {
@@ -31,19 +32,34 @@ func (client *Client) GetConnection(request *Request, reDial bool) *Connection {
 	return <- client.Pool
 }
 
+func (client *Client) readResponse(connection net.Conn) ([]byte, error) {
+	var response *fasthttp.Response = fasthttp.AcquireResponse()
+	defer fasthttp.ReleaseResponse(response)
+	
+	var err error
+	if client.ReadBufferSize > 0 {
+		err = response.ReadBody(bufio.NewReader(connection), client.ReadBufferSize)
+	} else {
+		err = response.Read(bufio.NewReader(connection))
+	}
+	return response.Body(), err
+}
+
 func (client *Client) Do(request *Request) []byte {
 	var connection *Connection = client.GetConnection(request, false)
-	var response *fasthttp.Response = fasthttp.AcquireResponse()
-	for {
+	for i := 0; i < 10; i++ {
 		if _, err := connection.Conn.Write([]byte(request.buldPacket())); err != nil {
 			connection.Conn.Close()
 			connection = client.GetConnection(request, true)
 			continue
 		}
-		if err := response.Read(bufio.NewReader(connection.Conn)); err != nil {
+
+		var body, err = client.readResponse(connection.Conn)
+		if err != nil {
 			continue
 		}
 		client.Pool <- connection
-		return response.Body()
+		return body
 	}
+	panic("Failed to send request after 10 attempts")
 }
