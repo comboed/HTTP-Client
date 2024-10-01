@@ -19,12 +19,12 @@ func createClient(maxConnections, readBufferSize int, tlsConfig *tls.Config) *Cl
 		MaxConnections: maxConnections,
 		ReadBufferSize: readBufferSize,
 		TLSConfig: tlsConfig,
-		Pool: make(chan *Connection, maxConnections + 100),
+		Pool: make(chan *Connection, maxConnections),
 	}
 }
 
 func (client *Client) GetConnection(request *Request, reDial bool) *Connection {	
-	if len(client.Pool) < client.MaxConnections {
+	if len(client.Pool) < client.MaxConnections || reDial {
 		var connection *Connection = createConnection(client.TLSConfig)
 		connection.DialHost(request)
 		return connection
@@ -32,13 +32,13 @@ func (client *Client) GetConnection(request *Request, reDial bool) *Connection {
 	return <- client.Pool
 }
 
-func (client *Client) readResponse(connection net.Conn) ([]byte, error) {
+func (client *Client) ReadResponse(connection net.Conn) ([]byte, error) {
 	var response *fasthttp.Response = fasthttp.AcquireResponse()
+	var err error
 	defer fasthttp.ReleaseResponse(response)
 	
-	var err error
 	if client.ReadBufferSize > 0 {
-		err = response.ReadBody(bufio.NewReader(connection), client.ReadBufferSize)
+		err = response.ReadLimitBody(bufio.NewReader(connection), client.ReadBufferSize)
 	} else {
 		err = response.Read(bufio.NewReader(connection))
 	}
@@ -54,7 +54,7 @@ func (client *Client) Do(request *Request) []byte {
 			continue
 		}
 
-		var body, err = client.readResponse(connection.Conn)
+		var body, err = client.ReadResponse(connection.Conn)
 		if err != nil {
 			continue
 		}
